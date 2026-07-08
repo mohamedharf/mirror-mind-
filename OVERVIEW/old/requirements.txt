@@ -1,0 +1,74 @@
+# ============================================================
+# requirements.txt — مشروع المرايا
+# Python 3.11.x
+# جميع الـ versions مثبّتة ومختبرة التوافق مع بعض
+# آخر تحديث: يوليو 2026
+# ============================================================
+
+# ─── Django Core ───────────────────────────────────────────
+Django==4.2.16
+djangorestframework==3.15.2
+
+# ─── Authentication ────────────────────────────────────────
+django-allauth==65.3.0
+# ⚠️ تنبيه: django-allauth غيّر API بشكل جذري في v64+
+# لا تستخدم نسخة أقل من 64.x مع هذا المشروع
+# allauth.account.middleware.AccountMiddleware إلزامي في MIDDLEWARE
+
+djangorestframework-simplejwt==5.5.1
+dj-rest-auth[with_social]==7.0.1
+# dj-rest-auth يجمع allauth + simplejwt بدون boilerplate يدوي
+
+# ─── Celery ────────────────────────────────────────────────
+celery==5.4.0
+# ⚠️ لا تستخدم 5.5+ أو 5.6+ — لا تزال beta
+django-celery-beat==2.7.0
+django-celery-results==2.5.1
+redis==5.2.0
+
+# ─── Database ──────────────────────────────────────────────
+psycopg2-binary==2.9.10
+# ⚠️ psycopg2-binary للـ dev فقط
+# في production استخدم: psycopg2==2.9.10 (مع build dependencies)
+django-environ==0.11.2
+
+# ─── AI / LLM ──────────────────────────────────────────────
+google-generativeai==0.8.3
+
+# ─── STT ───────────────────────────────────────────────────
+faster-whisper==1.1.0
+# ⚠️ تحذير حرج: faster-whisper يتعلق (hang) داخل Celery tasks
+# السبب: تعارض CTranslate2 multiprocessing مع Celery pool
+# الحل المطبق: STT يُشغَّل synchronous مباشرة في Django view
+# لا تحاول تشغيله كـ Celery task
+# المرجع: https://github.com/SYSTRAN/faster-whisper/issues/907
+
+# ─── API Utilities ─────────────────────────────────────────
+django-cors-headers==4.4.0
+djangofilter==0.1.0
+django-filter==24.3
+Pillow==10.4.0
+
+# ─── Development ───────────────────────────────────────────
+ipython==8.28.0
+
+# ============================================================
+# ملاحظات التوافق المهمة:
+#
+# 1. django-allauth 65.x + dj-rest-auth 7.x:
+#    متوافقان ومعتمدان رسمياً.
+#    لا تخلط allauth 65.x مع dj-rest-auth < 6.x.
+#
+# 2. celery 5.4 + django-celery-beat 2.7:
+#    متوافقان. celery 5.5+ لا يزال beta ولا يُنصح به.
+#
+# 3. faster-whisper 1.1 + Python 3.11:
+#    يعمل على CPU و CUDA.
+#    يحتاج ffmpeg مثبت على النظام:
+#    Ubuntu: sudo apt install ffmpeg
+#    macOS:  brew install ffmpeg
+#
+# 4. google-generativeai 0.8:
+#    يدعم Gemini Flash (gemini-2.5-flash-lite) الـ free tier.
+#    تأكد من GEMINI_API_KEY في .env
+# ============================================================

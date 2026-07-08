@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+@theme {
+  /* Map CSS variables to Tailwind color tokens */
+  --color-bg-deep: #0D1B2A;
+  --color-bg-surface: #1A2B3C;
+  --color-bg-elevated: #243447;
+
+  --color-primary: #2E75B6;
+  --color-primary-light: #4A90D9;
+
+  --color-text-primary: #EAF1F8;
+  --color-text-secondary: #8FA8C7;
+  --color-text-muted: #4A5F7A;
+
+  --color-mood-high: #4CAF82;
+  --color-mood-low: #E05C5C;
+  --color-mood-mid: #E8A838;
+
+  --color-border: #2A3F55;
+  --color-divider: #1E3048;
+
+  --color-surface: #1A2B3C;
+
+  --font-sans: 'IBM Plex Sans Arabic', 'Cairo', Arial, sans-serif;
+}
+
+@layer base {
+  :root {
+    --bg-deep:       #0D1B2A;
+    --bg-surface:    #1A2B3C;
+    --bg-elevated:   #243447;
+
+    --primary:       #2E75B6;
+    --primary-light: #4A90D9;
+
+    --text-primary:  #EAF1F8;
+    --text-secondary:#8FA8C7;
+    --text-muted:    #4A5F7A;
+
+    --mood-high:     #4CAF82;
+    --mood-low:      #E05C5C;
+    --mood-mid:      #E8A838;
+
+    --border:        #2A3F55;
+    --divider:       #1E3048;
+
+    --radius-sm:   8px;
+    --radius-md:  16px;
+    --radius-lg:  24px;
+    --radius-pill:50px;
+
+    --shadow-card: 0 2px 12px rgba(0,0,0,0.3);
+  }
+
+  html {
+    direction: rtl;
+  }
+
+  body {
+    background-color: #0D1B2A;
+    color: #EAF1F8;
+    font-family: 'IBM Plex Sans Arabic', 'Cairo', Arial, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    min-height: max(884px, 100dvh);
+  }
+
+  /* Prevent textarea resize */
+  textarea { resize: none; }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--bg-elevated); border-radius: 4px; }
+
+  /* Hide scrollbar for month filter strip */
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* Material Symbols */
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    user-select: none;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}

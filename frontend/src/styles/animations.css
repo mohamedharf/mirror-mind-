@@ -1,0 +1,66 @@
+/* ── Shimmer (skeleton loader) ──────────────────── */
+@keyframes shimmer {
+  0%   { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--bg-surface) 25%,
+    var(--bg-elevated) 50%,
+    var(--bg-surface) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+/* ── Pulse (mic recording) ──────────────────────── */
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0px rgba(224,92,92,0.5); }
+  70%  { box-shadow: 0 0 0 14px rgba(224,92,92,0); }
+  100% { box-shadow: 0 0 0 0px rgba(224,92,92,0); }
+}
+.pulse-recording { animation: pulse-ring 1.2s infinite; }
+
+/* ── Fade + Slide ────────────────────────────────── */
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes popIn {
+  0%   { opacity: 0; transform: scale(0.8); }
+  70%  { transform: scale(1.1); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.animate-slide-down { animation: slideDown 250ms ease-out forwards; }
+.animate-slide-up   { animation: slideUp  300ms ease-out forwards; }
+.animate-fade-in    { animation: fadeIn   200ms ease-out forwards; }
+.animate-pop-in     { animation: popIn    400ms cubic-bezier(.175,.885,.32,1.275) forwards; }
+
+/* ── Stagger helper ──────────────────────────────── */
+.stagger-1 { animation-delay: 50ms;  }
+.stagger-2 { animation-delay: 100ms; }
+.stagger-3 { animation-delay: 150ms; }
+.stagger-4 { animation-delay: 200ms; }
+.stagger-5 { animation-delay: 250ms; }
+
+/* ── Reduced motion ──────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+}

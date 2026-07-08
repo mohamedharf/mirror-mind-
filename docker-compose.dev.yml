@@ -1,0 +1,92 @@
+# docker-compose.dev.yml
+# الهدف: تشغيل كل الخدمات الداعمة في Docker
+# أنت بتشغّل يدوياً بس: Django runserver + Vite dev server
+#
+# الاستخدام:
+#   docker compose -f docker-compose.dev.yml up -d
+#   ثم في terminal 1: python manage.py runserver
+#   ثم في terminal 2: cd frontend && npm run dev
+
+version: '3.9'
+
+services:
+
+  # ── PostgreSQL ──────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: maraya_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       maraya
+      POSTGRES_USER:     maraya
+      POSTGRES_PASSWORD: maraya_dev_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U maraya -d maraya"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Redis ───────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: maraya_redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ── Celery Worker ───────────────────────────────
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: maraya_celery_worker
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://maraya:maraya_dev_pass@db:5432/maraya
+      REDIS_URL:    redis://redis:6379/0
+    volumes:
+      - .:/app
+      - whisper_models:/app/whisper_models
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A config worker --loglevel=info --concurrency=2
+
+  # ── Celery Beat ─────────────────────────────────
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: maraya_celery_beat
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://maraya:maraya_dev_pass@db:5432/maraya
+      REDIS_URL:    redis://redis:6379/0
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      celery -A config beat --loglevel=info
+      --scheduler django_celery_beat.schedulers:DatabaseScheduler
+
+volumes:
+  postgres_data:
+  whisper_models:
