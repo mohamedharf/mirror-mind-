@@ -164,10 +164,14 @@ REST_AUTH = {
 }
 
 # CORS settings
-CORS_ALLOW_ALL_ORIGINS = True # For development, change for production
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = env.list("FRONTEND_URL", default=[])
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:5173")
+CORS_ALLOW_ALL_ORIGINS = DEBUG
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = [
+    FRONTEND_URL,
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
 
 # Allauth settings
 ACCOUNT_AUTHENTICATION_METHOD = "email"
@@ -213,26 +217,30 @@ DATABASES = {
 }
 
 # Celery settings
-redis_host = os.environ.get("REDIS_HOST", "127.0.0.1")
-redis_password = os.environ.get("REDIS_PASSWORD")
-if redis_password:
-    CELERY_BROKER_URL = f"redis://:{redis_password}@{redis_host}:6379/0"
+redis_url = os.environ.get("REDIS_URL")
+if redis_url:
+    CELERY_BROKER_URL = redis_url
 else:
-    CELERY_BROKER_URL = f"redis://{redis_host}:6379/0"
+    redis_host = os.environ.get("REDIS_HOST", "127.0.0.1")
+    redis_password = os.environ.get("REDIS_PASSWORD")
+    if redis_password:
+        CELERY_BROKER_URL = f"redis://:{redis_password}@{redis_host}:6379/0"
+    else:
+        CELERY_BROKER_URL = f"redis://{redis_host}:6379/0"
 CELERY_RESULT_BACKEND = "django-db"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "UTC"
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
-
-# Django-Celery-Results settings
 CELERY_RESULT_EXTENDED = True
-CELERY_CACHE_BACKEND = "default"
+
+# Django Cache — استخدم Redis عشان يكون مشترك بين Django و Celery
+_cache_redis_url = os.environ.get("REDIS_URL") or os.environ.get("CACHE_URL", "redis://127.0.0.1:6379/1")
 CACHES = {
     "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        "LOCATION": "unique-snowflake",
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": _cache_redis_url,
     }
 }
 

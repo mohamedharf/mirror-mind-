@@ -1,10 +1,16 @@
 from rest_framework import serializers
 from .models import DailyReflection, WeeklyInsight, MonthlyInsight
+from apps.entries.models import Entry
 
 class DailyReflectionSerializer(serializers.ModelSerializer):
+    entry_count = serializers.SerializerMethodField()
+
     class Meta:
         model = DailyReflection
         fields = ["date", "avg_mood", "top_tags", "tag_alerts", "summary", "entry_count"]
+
+    def get_entry_count(self, obj):
+        return Entry.objects.filter(user=obj.user, created_at__date=obj.date).count()
 
 class WeeklyInsightSerializer(serializers.ModelSerializer):
     class Meta:

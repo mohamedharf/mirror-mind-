@@ -1,9 +1,12 @@
 from rest_framework import viewsets, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from django.utils import timezone
-from .models import Entry
+from django.core.cache import cache
+from .models import Entry, MetricDefinition
 from .serializers import EntrySerializer
+from .tasks import close_open_event_and_record_duration
 
 
 class UserScopedViewSet(viewsets.ModelViewSet):
@@ -24,7 +27,11 @@ class EntryViewSet(UserScopedViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        qs = super().get_queryset().select_related('parent').prefetch_related('children')
+        qs = super().get_queryset().select_related('parent').prefetch_related(
+            'children',
+            'metrics__definition',
+            'children__metrics__definition',
+        )
 
         # Filter by exact date
         date_param = self.request.query_params.get('date')
@@ -79,6 +86,39 @@ class EntryViewSet(UserScopedViewSet):
         
         return Response({'message': 'Analysis queued for retry'})
 
+    @action(detail=True, methods=['post'], url_path='close')
+    def close_event(self, request, pk=None):
+        """إغلاق حدث مفتوح مباشرة وحساب مدته دون انتظار تحليل الـ AI"""
+        open_entry = self.get_object()
+        if not open_entry.is_open_event:
+            return Response({'error': 'هذا الحدث ليس مفتوحاً'}, status=400)
+
+        # إنشاء مدخل وهمي للإغلاق ليُستخدم في حساب المدة وفي التسلسل الزمني
+        closing_text = request.data.get('text', f"تم إنهاء الحدث: {open_entry.text[:50]}")
+        closing_entry = Entry.objects.create(
+            user=request.user,
+            text=closing_text,
+            parent=open_entry,
+            processing_status='done',  # لا داعي للتحليل
+            entry_type='routine',
+            is_open_event=False
+        )
+
+        from .tasks import close_open_event_and_record_duration
+        result = close_open_event_and_record_duration(open_entry, closing_entry)
+
+        if result:
+            return Response({
+                'success': True,
+                'metric_name': result.get('metric_name'),
+                'duration_hours': result.get('duration_hours'),
+            })
+        
+        # لو مفيش مدة مسجلة (لأي سبب)، نقفله بس
+        open_entry.is_open_event = False
+        open_entry.save(update_fields=['is_open_event'])
+        return Response({'success': True, 'message': 'تم الإغلاق بدون حساب مدة.'})
+
     @action(detail=False, methods=['get'], url_path='today')
     def today(self, request):
         """GET /api/v1/entries/today/ — إدخالات اليوم مرتبة تنازلياً (الأحدث أولاً) وتجلب الجذور فقط"""
@@ -110,3 +150,55 @@ class EntryViewSet(UserScopedViewSet):
         ).order_by('-created_at')
         serializer = self.get_serializer(events, many=True)
         return Response(serializer.data)
+
+
+class CloseSuggestionView(APIView):
+    """
+    GET:    يجلب اقتراح إغلاق حدث للـ entry المحدد (لو موجود في Cache)
+    POST:   يؤكد الإغلاق ويسجل المدة كـ Metric
+    DELETE: يرفض الاقتراح ويحذفه من Cache
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, entry_id):
+        cache_key = f"close_suggestion:{request.user.id}:{entry_id}"
+        suggestion = cache.get(cache_key)
+        if not suggestion:
+            return Response({'has_suggestion': False})
+        return Response({
+            'has_suggestion':  True,
+            'open_entry_id':   suggestion['open_entry_id'],
+            'open_entry_text': suggestion['open_entry_text'],
+            'duration_hours':  suggestion['duration_hours'],
+            'metric_name':     suggestion['metric_name'],
+        })
+
+    def post(self, request, entry_id):
+        """المستخدم وافق — سجّل المدة وأغلق الحدث"""
+        cache_key = f"close_suggestion:{request.user.id}:{entry_id}"
+        suggestion = cache.get(cache_key)
+        if not suggestion:
+            return Response({'error': 'الاقتراح انتهت صلاحيته أو غير موجود'}, status=404)
+
+        try:
+            open_entry    = Entry.objects.get(id=suggestion['open_entry_id'],    user=request.user)
+            closing_entry = Entry.objects.get(id=suggestion['closing_entry_id'], user=request.user)
+        except Entry.DoesNotExist:
+            return Response({'error': 'إدخال غير موجود'}, status=404)
+
+        result = close_open_event_and_record_duration(open_entry, closing_entry)
+        cache.delete(cache_key)
+
+        if result:
+            return Response({
+                'success':        True,
+                'metric_name':    result['metric_name'],
+                'duration_hours': result['duration_hours'],
+            })
+        return Response({'error': 'لم يتم التسجيل — تحقق من البيانات'}, status=400)
+
+    def delete(self, request, entry_id):
+        """المستخدم رفض — احذف الاقتراح"""
+        cache_key = f"close_suggestion:{request.user.id}:{entry_id}"
+        cache.delete(cache_key)
+        return Response({'dismissed': True})

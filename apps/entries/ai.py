@@ -20,24 +20,42 @@ EXTRACTION_DEFAULT = {
 }
 
 # ── System Prompt ──────────────────────────────────────────────
-EXTRACTION_SYSTEM = "استخرج بـ JSON فقط بدون نصوص. لا تنصح. استخدم metrics/tags بدقة."
+EXTRACTION_SYSTEM = """استخرج بيانات منظمة من نص يومي. أجب فقط بـ JSON صالح بدون أي نص إضافي."""
 
-# ── User Prompt Template ───────────────────────────────────────
 EXTRACTION_USER = """
-النص: {text}
-Metrics: {metrics_definitions}
-Tags: {recent_tags}
+النص:
+{text}
 
-استخرج:
-1. metrics: [{"name":"..", "value":.., "unit":"..", "is_new":bool}] (دقيق فقط، لو ذُكر الوحدة مفرد مثل فنجان/سيجارة بدون رقم، افترض value=1)
-2. mood_score: 1.0-5.0
-3. tags: [أحداث/مشاعر فقط]
-4. entry_type: routine/event/reflection
-5. entities: {"أشخاص":[],"مشاريع":[],"أماكن":[]}
-6. reflection: جملة تلخيص
-7. is_open_event: bool
+الـ Metrics المعرّفة — استخدم الاسم الرسمي بالضبط (العمود الأول):
+{metrics_definitions}
 
-JSON:
+التاجز الأخيرة للمستخدم (للاتساق):
+{recent_tags}
+
+قواعد استخراج الـ metrics:
+- لو ذُكر الـ unit أو alias بدون عدد → value = 1 (مثال: "سجرت سيجارة" → سجائر, 1)
+- لو ذُكر عدد → استخدمه (مثال: "شربت 3 كبايات" → قهوة, 3)
+- لو مفيش unit ولا عدد → لا تُضف
+- لو metric جديد مش في القائمة → is_new: true
+
+أجب بـ JSON فقط:
+{{
+  "metrics": [
+    {{"name": "الاسم الرسمي من القائمة", "value": 1, "unit": "الوحدة", "is_new": false}}
+  ],
+  "mood_score": 3.0,
+  "tags": ["كلمة1", "كلمة2"],
+  "entry_type": "routine أو event أو reflection",
+  "entities": {{"أشخاص": [], "مشاريع": [], "أماكن": []}},
+  "reflection": "جملة وصفية واحدة",
+  "is_open_event": false
+}}
+
+تعريف mood_score:
+1.0-1.9 = سلبي جداً | 2.0-2.9 = سلبي | 3.0-3.4 = محايد | 3.5-4.4 = إيجابي | 4.5-5.0 = إيجابي جداً
+
+tags = أحداث ومشاعر فقط (مش العادات — دي في metrics)
+is_open_event = true لو الحدث بدأ للتو وسيستمر لفترة زمنية (مثل: هنام، بدأت شغل، بذاكر، هسافر) ولم ينتهِ بعد. (لا تستخدمها للأحداث المنتهية مثل: صحيت، خلصت، انتهيت)
 """
 
 
@@ -50,14 +68,14 @@ def safe_gemini_call(prompt: str, system: str, default: dict,
     """
     try:
         model = genai.GenerativeModel(
-            os.environ.get('GEMINI_MODEL', 'gemini-1.5-flash'),
+            os.environ.get('GEMINI_MODEL', 'gemini-2.5-flash'),
             system_instruction=system
         )
         response = model.generate_content(
             prompt,
             generation_config=genai.GenerationConfig(
                 temperature=temperature,
-                max_output_tokens=max_tokens,
+                max_output_tokens=2048,
             ),
             request_options={"timeout": 20}
         )
@@ -72,7 +90,7 @@ def safe_gemini_call(prompt: str, system: str, default: dict,
         raise  # يُعاد throw للـ task عشان تعمل retry
 
     except (json.JSONDecodeError, KeyError, ValueError) as e:
-        logger.error(f"Gemini response parse error: {e}")
+        logger.error(f"Gemini response parse error: {e}. Raw response: {raw}")
         return default
 
     except Exception as e:

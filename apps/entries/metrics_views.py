@@ -58,18 +58,25 @@ class TodayMetricsView(APIView):
             direction = _get_direction(deviation_pct)
             label     = _get_label(name, direction)
 
+            try:
+                is_duration = MetricDefinition.objects.get(name=name).is_duration_based
+            except MetricDefinition.DoesNotExist:
+                is_duration = False
+
             result.append({
-                "name":            name,
-                "unit":            unit,
-                "today_total":     total,
-                "baseline_avg":    baseline_avg,
-                "deviation_pct":   round(deviation_pct, 1) if deviation_pct is not None else None,
-                "direction":       direction,
-                "lower_is_better": name in LOWER_IS_BETTER,
-                "label":           label,
+                "name":             name,
+                "unit":             unit,
+                "today_total":      total,
+                "baseline_avg":     baseline_avg,
+                "deviation_pct":    round(deviation_pct, 1) if deviation_pct is not None else None,
+                "direction":        direction,
+                "lower_is_better":  name in LOWER_IS_BETTER,
+                "label":            label,
+                "is_duration_based": is_duration,
             })
 
         return Response({"date": str(today), "metrics": result})
+
 
 
 class MetricHistoryView(APIView):

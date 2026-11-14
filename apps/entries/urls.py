@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import EntryViewSet
+from .views import EntryViewSet, CloseSuggestionView
 from .metrics_views import TodayMetricsView, MetricHistoryView, MetricDefinitionsView
 
 router = DefaultRouter()
@@ -11,4 +11,5 @@ urlpatterns = [
     path('metrics/today/',       TodayMetricsView.as_view(),      name='metrics-today'),
     path('metrics/history/',     MetricHistoryView.as_view(),     name='metrics-history'),
     path('metrics/definitions/', MetricDefinitionsView.as_view(), name='metrics-definitions'),
+    path('entries/<int:entry_id>/close-suggestion/', CloseSuggestionView.as_view(), name='close-suggestion'),
 ]

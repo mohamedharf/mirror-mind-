@@ -53,8 +53,8 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://maraya:maraya_dev_pass@db:5432/maraya
-      REDIS_URL:    redis://redis:6379/0
+      DB_HOST: host.docker.internal
+      REDIS_HOST: redis
     volumes:
       - .:/app
       - whisper_models:/app/whisper_models
@@ -74,8 +74,8 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://maraya:maraya_dev_pass@db:5432/maraya
-      REDIS_URL:    redis://redis:6379/0
+      DB_HOST: host.docker.internal
+      REDIS_HOST: redis
     volumes:
       - .:/app
     depends_on:

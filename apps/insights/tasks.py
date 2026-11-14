@@ -191,7 +191,7 @@ def generate_daily_reflection(self, user_id=None, target_date_str=None):
             DailyReflection.objects.update_or_create(
                 user=user, date=target_date,
                 defaults={"avg_mood": None, "top_tags": [], "tag_alerts": [],
-                          "summary": "لا توجد إدخالات لهذا اليوم.", "entry_count": 0}
+                          "summary": "لا توجد إدخالات لهذا اليوم."}
             )
             return f"No entries for user {user_id} on {target_date_str}."
 
@@ -220,8 +220,7 @@ def generate_daily_reflection(self, user_id=None, target_date_str=None):
                 "avg_mood":    mood_avg,
                 "top_tags":    top_tags,
                 "tag_alerts":  tag_alerts,
-                "summary":     summary,
-                "entry_count": entries.count()
+                "summary":     summary
             }
         )
         return f"Daily Reflection done for user {user_id} on {target_date_str}."
@@ -279,7 +278,6 @@ def generate_weekly_insight(self, user_id=None, week_start_str=None):
             top_tags=", ".join(top_tags) or "لا يوجد",
             entry_count=entries.count()
         )
-        result   = safe_gemini_call(WEEKLY_USER.format(**{}), WEEKLY_SYSTEM, {"patterns": []})
         result   = safe_gemini_call(user_prompt, WEEKLY_SYSTEM, {"patterns": []})
         patterns = result.get("patterns", []) if isinstance(result, dict) else []
 

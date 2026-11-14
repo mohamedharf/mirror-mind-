@@ -9,20 +9,24 @@ class MetricDefinitionSerializer(serializers.ModelSerializer):
 
 
 class MetricSerializer(serializers.ModelSerializer):
-    name = serializers.CharField(source='definition.name', read_only=True)
-    unit = serializers.CharField(source='definition.unit', read_only=True)
+    name              = serializers.CharField(source='definition.name', read_only=True)
+    unit              = serializers.CharField(source='definition.unit', read_only=True)
+    is_duration_based = serializers.BooleanField(source='definition.is_duration_based', read_only=True)
 
     class Meta:
-        model = Metric
-        fields = ['id', 'name', 'unit', 'value', 'recorded_at']
+        model  = Metric
+        fields = ['id', 'name', 'unit', 'value', 'is_duration_based', 'recorded_at']
 
 
 class EntryChildSerializer(serializers.ModelSerializer):
     """Serializer مبسط للأبناء — يمنع nesting لا نهائي"""
+    metrics = MetricSerializer(many=True, read_only=True)
+
     class Meta:
-        model = Entry
+        model  = Entry
         fields = ['id', 'text', 'created_at', 'mood_score',
-                  'tags', 'processing_status', 'is_open_event']
+                  'tags', 'processing_status', 'is_open_event', 'metrics']
+
 
 
 class EntrySerializer(serializers.ModelSerializer):

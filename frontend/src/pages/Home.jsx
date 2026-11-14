@@ -4,6 +4,9 @@ import { enqueue, flush } from '../lib/offlineQueue'
 import { pollEntryStatus, toArabicDate, buildThreadView, fetchStreak } from '../lib/utils'
 import EntryCard from '../components/EntryCard'
 import MetricCard from '../components/MetricCard'
+import DurationMetricCard from '../components/DurationMetricCard'
+import CloseSuggestionBanner from '../components/CloseSuggestionBanner'
+import OpenEventsBanner from '../components/OpenEventsBanner'
 import ReflectionCard from '../components/ReflectionCard'
 import Toast from '../components/Toast'
 
@@ -71,7 +74,9 @@ export default function Home() {
   const [totalToday, setTotalToday] = useState(0)
   const [showMore, setShowMore] = useState(false)
   const [lastReflection, setLastReflection] = useState(null)
+  const [lastSavedEntryId, setLastSavedEntryId] = useState(null)   // للـ CloseSuggestionBanner
   const [metrics, setMetrics] = useState([])
+  const [weeklyMetrics, setWeeklyMetrics] = useState({})            // تاريخ أسبوعي للـ duration metrics
   const [showAllMetrics, setShowAllMetrics] = useState(false)
   const [streak, setStreak] = useState(0)
 
@@ -94,7 +99,20 @@ export default function Home() {
   const fetchMetrics = useCallback(async () => {
     try {
       const { data } = await api.get('/metrics/today/')
-      setMetrics(data.metrics || [])
+      const metricsData = data.metrics || []
+      setMetrics(metricsData)
+      // جلب السجل الأسبوعي للـ duration metrics
+      const durationOnes = metricsData.filter(m => m.is_duration_based)
+      if (durationOnes.length > 0) {
+        const results = {}
+        await Promise.all(durationOnes.map(async (m) => {
+          try {
+            const { data: hist } = await api.get('/metrics/history/', { params: { name: m.name, days: 7 } })
+            results[m.name] = hist.data || []
+          } catch { results[m.name] = [] }
+        }))
+        setWeeklyMetrics(results)
+      }
     } catch {
       setMetrics([])
     }
@@ -226,6 +244,7 @@ export default function Home() {
       setSelectedParentId(null)
       setSelectedParentText('')
       setSuggestedCloseEvent(null)
+      setLastSavedEntryId(data.id)   // تفعيل CloseSuggestionBanner
       addToTodayEntries(data)
       
       // إذا كان الإدخال يقفل حدثاً مفتوحاً، جلب الأحداث المفتوحة مرة أخرى لتحديث الواجهة
@@ -414,14 +433,20 @@ export default function Home() {
   const threadView = buildThreadView(todayEntries)
   const visibleEvents = showMore ? threadView : threadView.slice(0, 5)
 
+  const hasPending = todayEntries.some(e => ['pending', 'processing'].includes(e.processing_status))
+
   return (
     <>
+      {/* hasPending overlay removed to allow user interaction while loading */}
+
       <header className="sticky top-0 z-40 px-4 py-4 flex justify-between items-center bg-bg-deep/80 backdrop-blur">
         <div className="text-[14px] text-text-secondary">{toArabicDate()}</div>
         <div className="text-[13px] text-text-secondary">🔥 {streak} أيام</div>
       </header>
 
       <main className="pb-24">
+        <ReflectionCard data={lastReflection} onDismiss={() => setLastReflection(null)} />
+
         {selectedParentId && (
           <div className="mx-4 mb-3 bg-bg-elevated border-r-[3px] border-primary rounded-[var(--radius-sm)] px-[14px] py-[10px] flex justify-between items-start">
             <button type="button" onClick={clearParent} className="text-[18px] text-text-muted hover:text-text-primary">✕</button>
@@ -447,24 +472,14 @@ export default function Home() {
           </div>
         )}
 
-        {/* الأحداث المفتوحة (Active Timers) */}
-        {openEvents.length > 0 && !selectedParentId && (
-          <div className="mx-4 mb-3 flex flex-col gap-2">
-            {openEvents.map(ev => (
-              <div key={ev.id} className="flex justify-between items-center bg-[rgba(224,92,92,0.05)] border border-[rgba(224,92,92,0.2)] rounded-[var(--radius-sm)] px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <span className="animate-pulse text-[18px]">🔴</span>
-                  <div>
-                    <span className="text-[12px] font-bold text-text-primary">{(ev.tags && ev.tags[0]) || 'حدث مفتوح'} نشط</span>
-                    <p className="text-[11px] text-text-muted">منذ {new Date(ev.created_at).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'})}</p>
-                  </div>
-                </div>
-                <button type="button" onClick={() => handleCloseActiveEvent(ev)} className="bg-primary text-white text-[12px] px-3 py-1.5 rounded-[var(--radius-pill)]">
-                  إنهاء
-                </button>
-              </div>
-            ))}
-          </div>
+        {/* الأحداث المفتوحة (Active Timers) فوق التيكست اريا */}
+        {!selectedParentId && (
+          <OpenEventsBanner
+            onClose={() => {
+              fetchTodayEntries()
+              fetchMetrics()
+            }}
+          />
         )}
 
         <div className="mx-4 mb-2 relative">
@@ -528,9 +543,11 @@ export default function Home() {
                   : '-'
               } />
               
-              {metrics.map((m, i) => (
-                <MetricCard key={m.name} metric={m} index={i} />
-              ))}
+              {metrics.map((m, i) =>
+                m.is_duration_based
+                  ? <DurationMetricCard key={m.name} metric={m} weeklyData={weeklyMetrics[m.name] || []} index={i} />
+                  : <MetricCard key={m.name} metric={m} index={i} />
+              )}
             </div>
           </section>
         )}
@@ -563,7 +580,19 @@ export default function Home() {
           )}
         </section>
 
-        <ReflectionCard data={lastReflection} onDismiss={() => setLastReflection(null)} />
+
+
+        {lastSavedEntryId && (
+          <CloseSuggestionBanner
+            entryId={lastSavedEntryId}
+            onConfirmed={({ metricName, durationHours }) => {
+              showToastMsg(`✅ سُجّل ${metricName}: ${durationHours} ساعة`)
+              fetchMetrics()
+              setLastSavedEntryId(null)
+            }}
+            onDismissed={() => setLastSavedEntryId(null)}
+          />
+        )}
       </main>
 
       <Toast message={toast.msg} type={toast.type} />

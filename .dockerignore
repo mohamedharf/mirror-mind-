@@ -1,0 +1,38 @@
+.git
+.gitignore
+.dockerignore
+.env
+*.env
+*.sqlite3
+db.sqlite3
+env/
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+token.txt
+test_post.py
+test-api.http
+
+# Frontend artifacts & dependencies
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+
+# Whisper & Large Weights (downloaded into container volume at runtime)
+whisper_models/
+
+# OS and Editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+

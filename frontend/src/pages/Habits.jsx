@@ -147,6 +147,16 @@ export default function Habits() {
 }
 
 /* ── Today Summary Bar ── */
+const DURATION_EMOJI = { 'نوم': '😴', 'عمل': '💼', 'رياضة': '⚡' }
+
+function formatHoursShort(h) {
+  if (!h) return '—'
+  const hours   = Math.floor(h)
+  const minutes = Math.round((h - hours) * 60)
+  if (hours === 0) return `${minutes}د`
+  return minutes > 0 ? `${hours}س${minutes}د` : `${hours}س`
+}
+
 function TodaySummaryBar({ metrics }) {
   if (!metrics.length) return null
   return (
@@ -166,12 +176,19 @@ function TodaySummaryBar({ metrics }) {
             ? (lib ? 'var(--mood-low)' : 'var(--mood-high)')
             : (lib ? 'var(--mood-high)' : 'var(--mood-low)')
 
+        const displayValue = m.is_duration_based
+          ? formatHoursShort(m.today_total)
+          : (m.today_total || 0)
+
         return (
           <div key={m.name}
             className={`animate-fade-in stagger-${Math.min(i + 1, 5)}`}
             style={{ flexShrink: 0, textAlign: 'center', minWidth: 50 }}>
+            {m.is_duration_based && (
+              <div style={{ fontSize: 14 }}>{DURATION_EMOJI[m.name] ?? '⏱'}</div>
+            )}
             <div style={{ fontSize: 18, fontWeight: 700, color }}>
-              {m.today_total || 0}
+              {displayValue}
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{m.name}</div>
           </div>
@@ -180,6 +197,7 @@ function TodaySummaryBar({ metrics }) {
     </div>
   )
 }
+
 
 /* ── Stats Grid ── */
 function HabitStatsGrid({ metric }) {
